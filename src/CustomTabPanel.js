@@ -205,7 +205,7 @@ export default function BasicTabs() {
       sendNotification(notiRequest)
       .then(res => {
         // console.log(res);
-        if (res === "Sending") {
+        if (res === "Sending...") {
           setStatus(1);
         } else {
           setStatus(2);
