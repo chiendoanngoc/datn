@@ -9,7 +9,8 @@ import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 
 function getList() {
-	return fetch('https://4wqlnxo1ld.execute-api.ap-southeast-1.amazonaws.com/send-noti').then(data => data.json())
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Notification-service?status=fail&after=0&before=9999999999999')
+         .then(data => data.json())
 }
 
 function resendNoti(row) {
@@ -32,11 +33,11 @@ function resendNoti(row) {
       }
     ]
   }
-	return fetch('https://4wqlnxo1ld.execute-api.ap-southeast-1.amazonaws.com/send-noti',{
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Notification-service',{
     method: "POST",
     mode: "cors",
     body: JSON.stringify(jsonData)
-  }).then(data => data.json()).then(() => {window.location.reload()})
+  }).then(data => data.json())
 }
 
 export default function ResendTable() {
@@ -49,10 +50,11 @@ export default function ResendTable() {
         setRows(items);
         setFetched(true);
 			})
-	}, [])
+	}, [fetched])
 
 	const handleResend = (event, row) => {
 		resendNoti(row).then(items => {console.log(items)});
+    setFetched(false);
 	}
 
   return (

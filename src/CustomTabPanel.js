@@ -13,6 +13,10 @@ import Checkbox from '@mui/material/Checkbox';
 import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Alert from '@mui/material/Alert';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -47,14 +51,15 @@ function a11yProps(index) {
   };
 }
 
-function createScheduler(name, expression, input) {
+function createScheduler(name, groupname, expression, input) {
   let jsonData = {
     "Name": name,
+    "GroupName": groupname,
     "ScheduleExpression": expression,
     "Input": input
   }
-  console.log(jsonData);
-	return fetch('https://4wqlnxo1ld.execute-api.ap-southeast-1.amazonaws.com/create-scheduler',{
+  // console.log(jsonData);
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Schedule-service',{
     method: "POST",
     mode: "cors",
     body: JSON.stringify(jsonData)
@@ -62,11 +67,26 @@ function createScheduler(name, expression, input) {
 }
 
 function sendNotification(input) {
-	return fetch('https://4wqlnxo1ld.execute-api.ap-southeast-1.amazonaws.com/send-noti',{
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Notification-service',{
     method: "POST",
     mode: "cors",
     body: JSON.stringify(input)
   }).then(data => data.json())
+}
+
+function getCustomerList() {
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Notification-service/customer')
+         .then(data => data.json())
+}
+
+function getFormatList() {
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Notification-service/format')
+         .then(data => data.json())
+}
+
+function getGroupNameList() {
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Schedule-service/group')
+         .then(data => data.json())
 }
 
 export default function BasicTabs() {
@@ -81,13 +101,38 @@ export default function BasicTabs() {
   const [appID, setAppID] = React.useState('');
   const [title, setTitle] = React.useState('');
   const [subject, setSubject] = React.useState('');
-  const [format, setFormat] = React.useState('');
+  const [format, setFormat] = React.useState();
   const [vars, setVars] = React.useState([{"count": 1, "name": "", "value": ""}]);
   const [name, setName] = React.useState('');
+  const [groupName, setGroupName] = React.useState('');
   const [expression, setExpression] = React.useState('');
+  const [customerList, setCustomerList] = React.useState([]);
+  const [formatList, setFormatList] = React.useState([]);
+  const [template, setTemplate] = React.useState('');
+  const [groupNameList, setGroupNameList] = React.useState([]);
+  const [fetched, setFetched] = React.useState(null);
+
+  React.useEffect(() => {
+		getCustomerList()
+			.then(items => {
+        setCustomerList(items);
+			});
+    getFormatList()
+    .then(items => {
+      setFormatList(items);
+    });
+    getGroupNameList()
+    .then(items => {
+      setGroupNameList(items);
+    })
+    setFetched(true);
+	}, [fetched])
 
   const handleNameChange = (event) => {
     setName(event.target.value);
+  }
+  const handleGroupNameChange = (event) => {
+    setGroupName(event.target.value);
   }
   const handleExpressionChange = (event) => {
     setExpression(event.target.value);
@@ -118,6 +163,7 @@ export default function BasicTabs() {
   }
   const handleFormatChange = (event) => {
     setFormat(event.target.value);
+    setTemplate(event.target.value.Format);
   }
   const handleVarAdd = (e) => {
     setVars([...vars, {"count": vars.length+1, "name": "", "value": ""}]);
@@ -150,7 +196,7 @@ export default function BasicTabs() {
           "appID": appID,
           "title": title,
           "subject": subject,
-          "format": format,
+          "format": format.FormatID,
           "var": vars
         }
       ]
@@ -158,16 +204,25 @@ export default function BasicTabs() {
     if (type === "Notification") {
       sendNotification(notiRequest)
       .then(res => {
-        console.log(res);
-        if (res === "Sent") {
+        // console.log(res);
+        if (res === "Sending") {
           setStatus(1);
         } else {
           setStatus(2);
         }
       });
     } else if (type === "Schedule") {
-      notiRequest.routeKey = "POST /send-noti";
-      createScheduler(name, expression, notiRequest).then(items => {console.log(items)});
+      // notiRequest.routeKey = "POST /send-noti";
+      createScheduler(name, groupName, expression, notiRequest)
+      .then(res => {
+        // console.log(res);
+        if (res === "Create fail!") {
+          setStatus(4);
+        } else {
+          setStatus(3);
+        }
+      });
+      setFetched(false);
     }
   };
   const handleChange = (event, newValue) => {
@@ -230,30 +285,49 @@ export default function BasicTabs() {
               </FormGroup>
             </div>
             <div>
-              <TextField
-                required
-                fullWidth
-                id="outlined-multiline-flexible"
-                label="To"
-                value={to}
-                onChange={handleToChange}
-              />
-              <TextField
-                required
-                fullWidth
-                id="outlined-multiline-flexible"
-                label="Channel"
-                value={channel}
-                onChange={handleChannelChange}
-              />
-              <TextField
-                required
-                fullWidth
-                id="outlined-multiline-flexible"
-                label="AppID"
-                value={appID}
-                onChange={handleAppIDChange}
-              />
+              <FormControl sx={{m: 2, width: '40ch'}}>
+                <InputLabel id="demo-simple-select-label">To</InputLabel>
+                <Select
+                  required
+                  labelId="demo-simple-select-label"
+                  id="demo-simple-select"
+                  label="To"
+                  value={to}
+                  onChange={handleToChange}
+                >
+                  {customerList.map((customer) => (
+                    <MenuItem value={customer.CusID}>{customer.CusID}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl sx={{m: 2, width: '40ch'}}>
+                <InputLabel id="demo-simple-select-label">Channel</InputLabel>
+                <Select
+                  required
+                  labelId="demo-simple-select-label"
+                  id="demo-simple-select"
+                  label="Channel"
+                  value={channel}
+                  onChange={handleChannelChange}
+                >
+                  <MenuItem value="pushapp">pushapp</MenuItem>
+                  <MenuItem value="sms">sms</MenuItem>
+                  <MenuItem value="email">email</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl sx={{m: 2, width: '40ch'}}>
+                <InputLabel id="demo-simple-select-label">AppID</InputLabel>
+                <Select
+                  required
+                  labelId="demo-simple-select-label"
+                  id="demo-simple-select"
+                  label="AppID"
+                  value={appID}
+                  onChange={handleAppIDChange}
+                >
+                  <MenuItem value="appID1">appID1</MenuItem>
+                </Select>
+              </FormControl>
             </div>
             <div>
               <TextField
@@ -272,15 +346,30 @@ export default function BasicTabs() {
                 value={subject}
                 onChange={handleSubjectChange}
               />
-              <TextField
-                required
-                fullWidth
-                id="outlined-multiline-flexible"
-                label="Format"
-                value={format}
-                onChange={handleFormatChange}
-              />
+              <FormControl sx={{m: 2, width: '40ch'}}>
+                <InputLabel id="demo-simple-select-label">FormatID</InputLabel>
+                <Select
+                  required
+                  labelId="demo-simple-select-label"
+                  id="demo-simple-select"
+                  label="FormatID"
+                  value={format}
+                  onChange={handleFormatChange}
+                >
+                  {formatList.map((format) => (
+                    <MenuItem value={format}>{format.FormatID}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </div>
+            <TextField
+              required
+              fullWidth
+              multiline
+              id="outlined-multiline-flexible"
+              label="Format"
+              value={template}
+            />
             {vars.map((eachVar) => (
               <div>
                 <TextField
@@ -304,7 +393,7 @@ export default function BasicTabs() {
               <Button variant="contained" sx={{margin: 1}} onClick={(e) => {handleSubmit(e, 'Notification')}}>Notify</Button>
             </div>
             {status === 2 ? <Alert severity="error">Send fail!</Alert> : <></>}
-            {status === 1 ? <Alert severity="success">Sent!</Alert> : <></>}
+            {status === 1 ? <Alert severity="success">Sending...</Alert> : <></>}
           </div>
         </Box>
       </CustomTabPanel>
@@ -329,6 +418,21 @@ export default function BasicTabs() {
               onChange={handleNameChange}
               value={name}
             />
+            <FormControl sx={{m: 2, width: '40ch'}}>
+                <InputLabel id="demo-simple-select-label">Schedule group name</InputLabel>
+                <Select
+                  required
+                  labelId="demo-simple-select-label"
+                  id="demo-simple-select"
+                  label="ScheduleGroupName"
+                  value={groupName}
+                  onChange={handleGroupNameChange}
+                >
+                  {groupNameList.map((group) => (
+                    <MenuItem value={group.Name}>{group.Name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             <TextField
               required
               id="outlined-required"
@@ -381,30 +485,49 @@ export default function BasicTabs() {
                   </FormGroup>
                 </div>
                 <div>
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-multiline-flexible"
-                    label="To"
-                    value={to}
-                    onChange={handleToChange}
-                  />
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-multiline-flexible"
-                    label="Channel"
-                    value={channel}
-                    onChange={handleChannelChange}
-                  />
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-multiline-flexible"
-                    label="AppID"
-                    value={appID}
-                    onChange={handleAppIDChange}
-                  />
+                  <FormControl sx={{m: 2, width: '40ch'}}>
+                    <InputLabel id="demo-simple-select-label">To</InputLabel>
+                    <Select
+                      required
+                      labelId="demo-simple-select-label"
+                      id="demo-simple-select"
+                      label="To"
+                      value={to}
+                      onChange={handleToChange}
+                    >
+                      {customerList.map((customer) => (
+                        <MenuItem value={customer.CusID}>{customer.CusID}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl sx={{m: 2, width: '40ch'}}>
+                    <InputLabel id="demo-simple-select-label">Channel</InputLabel>
+                    <Select
+                      required
+                      labelId="demo-simple-select-label"
+                      id="demo-simple-select"
+                      label="Channel"
+                      value={channel}
+                      onChange={handleChannelChange}
+                    >
+                      <MenuItem value="pushapp">pushapp</MenuItem>
+                      <MenuItem value="sms">sms</MenuItem>
+                      <MenuItem value="email">email</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl sx={{m: 2, width: '40ch'}}>
+                    <InputLabel id="demo-simple-select-label">AppID</InputLabel>
+                    <Select
+                      required
+                      labelId="demo-simple-select-label"
+                      id="demo-simple-select"
+                      label="AppID"
+                      value={appID}
+                      onChange={handleAppIDChange}
+                    >
+                      <MenuItem value="appID1">appID1</MenuItem>
+                    </Select>
+                  </FormControl>
                 </div>
                 <div>
                   <TextField
@@ -423,15 +546,30 @@ export default function BasicTabs() {
                     value={subject}
                     onChange={handleSubjectChange}
                   />
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-multiline-flexible"
-                    label="Format"
-                    value={format}
-                    onChange={handleFormatChange}
-                  />
+                  <FormControl sx={{m: 2, width: '40ch'}}>
+                    <InputLabel id="demo-simple-select-label">FormatID</InputLabel>
+                    <Select
+                      required
+                      labelId="demo-simple-select-label"
+                      id="demo-simple-select"
+                      label="FormatID"
+                      value={format}
+                      onChange={handleFormatChange}
+                    >
+                      {formatList.map((format) => (
+                        <MenuItem value={format}>{format.FormatID}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </div>
+                <TextField
+                  required
+                  fullWidth
+                  multiline
+                  id="outlined-multiline-flexible"
+                  label="Format"
+                  value={template}
+                />
                 {vars.map((eachVar) => (
                   <div>
                     <TextField
@@ -456,8 +594,8 @@ export default function BasicTabs() {
             <div>
               <Button variant="contained" sx={{margin: 1}} onClick={(e) => {handleSubmit(e, 'Schedule')}}>Schedule</Button>
             </div>
-            <Alert severity="error">This is an error alert — check it out!</Alert>
-            <Alert severity="success">This is a success alert — check it out!</Alert>
+            {status === 4 ? <Alert severity="error">Create fail!</Alert> : <></>}
+            {status === 3 ? <Alert severity="success">Created!</Alert> : <></>}
           </div>
         </Box>
       </CustomTabPanel>

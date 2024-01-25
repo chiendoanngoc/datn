@@ -9,18 +9,19 @@ import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 
 function getList() {
-	return fetch('https://4wqlnxo1ld.execute-api.ap-southeast-1.amazonaws.com/create-scheduler').then(data => data.json())
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Schedule-service').then(data => data.json())
 }
 
-function deleteScheduler(name) {
+function deleteScheduler(groupName, name) {
   let jsonData = {
-    "Name": name
+    "Name": name,
+	"GroupName": groupName
   }
-	return fetch('https://4wqlnxo1ld.execute-api.ap-southeast-1.amazonaws.com/create-scheduler',{
+	return fetch('https://w0cpy7x8k7.execute-api.ap-southeast-1.amazonaws.com/prod/Schedule-service',{
     method: "DELETE",
     mode: "cors",
     body: JSON.stringify(jsonData)
-  }).then(data => data.json()).then(() => {window.location.reload()})
+  }).then(data => data.json())
 }
 
 export default function BasicTable() {
@@ -33,10 +34,10 @@ export default function BasicTable() {
 				setRows(items);
 				setFetched(true);
 			})
-	}, [])
+	}, [fetched])
 
-	const handleDelete = (event, name) => {
-		deleteScheduler(name).then(items => {console.log(items)});
+	const handleDelete = (event, groupName, name) => {
+		deleteScheduler(groupName, name).then(items => {console.log(items)}).then(() => setFetched(false));
 	}
 
   return (
@@ -48,7 +49,6 @@ export default function BasicTable() {
 							<TableCell><b>Group</b></TableCell>
 							<TableCell align="right"><b>Name</b></TableCell>
 							<TableCell align="right"><b>Created Date</b></TableCell>
-							<TableCell align="right"><b>View</b></TableCell>
 							<TableCell align="right"><b>Delete</b></TableCell>
 						</TableRow>
 					</TableHead>
@@ -64,12 +64,7 @@ export default function BasicTable() {
 								<TableCell align="right">{row.Name}</TableCell>
 								<TableCell align="right">{row.CreationDate}</TableCell>
 								<TableCell align="right">
-									<Button variant="contained" color="success">
-										View
-									</Button>
-								</TableCell>
-								<TableCell align="right">
-									<Button variant="contained" color="error" onClick={(e) => {handleDelete(e, row.Name)}}>
+									<Button variant="contained" color="error" onClick={(e) => {handleDelete(e, row.GroupName, row.Name)}}>
 										Delete
 									</Button>
 								</TableCell>
